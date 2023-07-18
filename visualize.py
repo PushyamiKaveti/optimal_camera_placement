@@ -85,6 +85,41 @@ def show_camconfigs(best_extr):
         axes.cla()
         time.sleep(0.1)
 
+def show_camconfig_with_world(best_extr,K, poses, points):
+    plt.ion()
+    fig1, ax1 = initialize_3d_plot(number=1, limits=np.array([[-30, 30], [-30, 30], [-30, 30]]),
+                                             view=[-90, -90])
+    # sanity check
+    while (True):
+        for i, pose in enumerate([poses[0]]):
+            for comp_pose in best_extr:
+                pose_wc = pose.compose(comp_pose)
+                plot.plot_pose3_on_axes(ax1, pose_wc, axis_length=1, P=None, scale=1)
+                camera = gtsam.PinholeCameraCal3_S2(pose_wc, K)
+                num_projected = 0
+                for j, point in enumerate(points):
+                    plot.plot_point3_on_axes(ax1, point, 'r*')
+                    try:
+                        measurement = camera.project(point)
+                        if (measurement[0] > 1 and measurement[0] < 2 * K.px() and measurement[1] > 1 and measurement[
+                            1] < 2 * K.py()):
+                            num_projected = num_projected + 1
+                            plot.plot_point3_on_axes(ax1, point, 'b*')
+                        #else:
+                       #     plot.plot_point3_on_axes(ax1, point, 'r*')
+                        # print("Measurement is out of bounds: ")
+                        # print(measurement)
+                    except Exception:
+                        pass
+                    # print("Exception at Point")
+                    # print(point)
+        fig1.canvas.draw()
+        fig1.canvas.flush_events()
+        time.sleep(0.1)
+        ax1.cla()
+    plt.ioff()
+
+
 def draw_trajectories_configs(trajs, best_configs):
 
     #show the trajectories and the configs

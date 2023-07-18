@@ -246,8 +246,8 @@ def getMLE_multicam(poses, points, extrinsics, K, points_mask):
     # Add a prior on pose x1. This indirectly specifies where the origin is.
     # 0.3 rad std on roll,pitch,yaw and 0.1m on x,y,z
     pose_noise = gtsam.noiseModel.Diagonal.Sigmas(np.array([0.3, 0.3, 0.3, 0.1, 0.1, 0.1]))
-    factor = PriorFactorPose3(X(0), poses[0], pose_noise)
-    graph.push_back(factor)
+    #factor = PriorFactorPose3(X(0), poses[0], pose_noise)
+    #graph.push_back(factor)
     #print("prior factor x0")
     dict = {}
     dict_lm_poses={}
@@ -336,7 +336,7 @@ def getMLE_multicam(poses, points, extrinsics, K, points_mask):
         if j not in rm_lm_indices and j in dict.keys():
             if ins_prior:
                 factor = PriorFactorPoint3(L(j), point, point_noise)
-                graph.push_back(factor)
+                # graph.push_back(factor)
                 ins_prior = False
             gt_vals.insert(L(j), point)
             #print("l"+str(j))
@@ -350,16 +350,11 @@ def getMLE_multicam(poses, points, extrinsics, K, points_mask):
         #print("not all poses have observed enough landmarks")
         pass
     #print(graph.keys())
+    print("num of factors: "+str(graph.size()))
+    print("Number of factors in graph" + str(graph.nrFactors()))
     return graph, gt_vals, pose_mask, points_mask
 
-def greedy_selection(points, poses, K, Nc, metric= Metric.logdet, loc= False):
-    min_baseline=0.15
-    # Sample the space of position and rotation
-    pose_rots = utilities.sample_rotations_sphere((0, 2 * math.pi), 4, (-math.pi/2, math.pi / 2), 4, False)
-    pose_trans = [ [-min_baseline, 0, min_baseline] , [0,0,min_baseline],[min_baseline, 0, min_baseline],
-                   [-min_baseline, 0, 0],[min_baseline, 0, 0],
-                   [-min_baseline, 0, -min_baseline],[0, 0, -min_baseline],[min_baseline, 0, -min_baseline]]
-
+def greedy_selection(points, poses, K,pose_rots, pose_trans, Nc, metric= Metric.logdet, loc= False):
     num_rot_samples = len(pose_rots)
     num_trans_samples = len(pose_trans)
     avail_cand = np.ones((num_rot_samples * num_trans_samples, 1))
@@ -500,5 +495,5 @@ def greedy_selection(points, poses, K, Nc, metric= Metric.logdet, loc= False):
     rmse = utilities.compute_traj_error(result, poses)
     print("The RMSE of the estimated trajectory with best camera placement: "+ str(rmse))
 
-    return best_extr, max_inf
+    return best_extr, max_inf, avail_cand
 

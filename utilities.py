@@ -41,7 +41,7 @@ def makePoses(K: Cal3_S2) -> List[Pose3]:
     """Generate a set of ground-truth camera poses arranged in a circle about the origin."""
     radius = 40.0
     height = 10.0
-    angles = np.linspace(0, 2 * np.pi, 16, endpoint=False)
+    angles = np.linspace(0, 2 * np.pi, 8, endpoint=False)
     up = gtsam.Point3(0, 0, 1)
     target = gtsam.Point3(0, 0, 0)
     poses = []
@@ -445,6 +445,16 @@ def sample_rotations_sphere(azi_range, azi_num_samples, elev_range, elev_num_sam
                 axes.cla()
                 time.sleep(0.1)
     return rot_mats
+
+def generate_candidate_poses(azi_range, azi_num_samples, elev_range, elev_num_samples):
+    min_baseline = 0.15
+    # Sample the space of position and rotation
+    pose_rots = sample_rotations_sphere(azi_range, azi_num_samples, elev_range, elev_num_samples, False)
+    #pose_rots = sample_rotations_sphere((0, 2 * math.pi), 4, (-math.pi / 2, math.pi / 2), 4, False)
+    pose_trans = [[-min_baseline, 0, min_baseline], [0, 0, min_baseline], [min_baseline, 0, min_baseline],
+                  [-min_baseline, 0, 0], [min_baseline, 0, 0],
+                  [-min_baseline, 0, -min_baseline], [0, 0, -min_baseline], [min_baseline, 0, -min_baseline]]
+    return pose_rots, pose_trans
 
 '''
 Method that takes number of cameras, min baseline between two closest cameras and the angular separation between them
