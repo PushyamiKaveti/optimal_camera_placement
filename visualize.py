@@ -85,38 +85,121 @@ def show_camconfigs(best_extr):
         axes.cla()
         time.sleep(0.1)
 
-def show_camconfig_with_world(best_extr,K, poses, points):
+def show_trajectories(poses, points, K, fignum=1, title="plot"):
     plt.ion()
-    fig1, ax1 = initialize_3d_plot(number=1, limits=np.array([[-30, 30], [-30, 30], [-30, 30]]),
-                                             view=[-90, -90])
-    # sanity check
-    while (True):
-        for i, pose in enumerate([poses[0]]):
-            for comp_pose in best_extr:
-                pose_wc = pose.compose(comp_pose)
-                plot.plot_pose3_on_axes(ax1, pose_wc, axis_length=1, P=None, scale=1)
-                camera = gtsam.PinholeCameraCal3_S2(pose_wc, K)
-                num_projected = 0
-                for j, point in enumerate(points):
-                    plot.plot_point3_on_axes(ax1, point, 'r*')
-                    try:
-                        measurement = camera.project(point)
-                        if (measurement[0] > 1 and measurement[0] < 2 * K.px() and measurement[1] > 1 and measurement[
-                            1] < 2 * K.py()):
-                            num_projected = num_projected + 1
-                            plot.plot_point3_on_axes(ax1, point, 'b*')
-                        #else:
-                       #     plot.plot_point3_on_axes(ax1, point, 'r*')
-                        # print("Measurement is out of bounds: ")
-                        # print(measurement)
-                    except Exception:
-                        pass
-                    # print("Exception at Point")
-                    # print(point)
+    fig1, ax1 = initialize_3d_plot(number=fignum,title=title, limits=np.array([[-30, 30], [-30, 30], [-30, 30]]),
+                                   view=[-90, -90])
+    for i, pose in enumerate(poses):
+        plot.plot_pose3_on_axes(ax1, pose, axis_length=1, P=None, scale=1)
+        camera = gtsam.PinholeCameraCal3_S2(pose, K)
+        num_projected = 0
+        for j, point in enumerate(points):
+            try:
+                measurement = camera.project(point) + 1.0 * np.random.randn(2)
+                if (measurement[0] > 1 and measurement[0] < 2 * K.px() and measurement[1] > 1 and measurement[
+                    1] < 2 * K.py()):
+                    num_projected = num_projected + 1
+                    plot.plot_point3_on_axes(ax1,point,'b*')
+                # else:
+                # print("Measurement is out of bounds: ")
+                # print(measurement)
+            except Exception:
+                pass
+                # print("Exception at Point")
+                # print(point)
+        ax1.set_xlim3d([-10, 10])
+        ax1.set_ylim3d([-10, 10])
+        ax1.set_zlim3d([-10, 10])
+        ax1.set_xlabel("X_Axis")
+        ax1.set_ylabel("Y-Axis")
+        ax1.set_zlabel("Z-Axis")
         fig1.canvas.draw()
         fig1.canvas.flush_events()
         time.sleep(0.1)
         ax1.cla()
+
+def show_camconfig_with_world(best_extrs, fignum,titles, K, poses, points):
+    plt.ion()
+    figs=[]
+    axs=[]
+    #fig2, ax2 = initialize_3d_plot(number=fignum+1, limits=np.array([[-30, 30], [-30, 30], [-30, 30]]),
+    #                               view=[-90, -90])
+    # sanity check
+    for c, best_extr in enumerate(best_extrs):
+        fig1, ax1 = initialize_3d_plot(number=fignum,title=titles[c], limits=np.array([[-30, 30], [-30, 30], [-30, 30]]),
+                                       view=[-90, -90])
+        fignum=fignum+1
+        figs.append(fig1)
+        axs.append(ax1)
+    while (True):
+        for c, best_extr in enumerate(best_extrs):
+            for i, pose in enumerate([poses[0]]):
+                for comp_pose in best_extr:
+                    pose_wc = pose.compose(comp_pose)
+                    plot.plot_pose3_on_axes(axs[c], pose_wc, axis_length=1, P=None, scale=1)
+                    camera = gtsam.PinholeCameraCal3_S2(pose_wc, K)
+                    num_projected = 0
+                    for j, point in enumerate(points):
+                        #plot.plot_point3_on_axes(ax1, point, 'r*')
+                        try:
+                            measurement = camera.project(point)
+                            if (measurement[0] > 1 and measurement[0] < 2 * K.px() and measurement[1] > 1 and measurement[
+                                1] < 2 * K.py()):
+                                num_projected = num_projected + 1
+                                plot.plot_point3_on_axes(axs[c], point, 'b*')
+                            #else:
+                           #     plot.plot_point3_on_axes(ax1, point, 'r*')
+                            # print("Measurement is out of bounds: ")
+                            # print(measurement)
+                        except Exception:
+                            pass
+        for c, fig in enumerate(figs):
+            axs[c].set_xlim3d([-10, 10])
+            axs[c].set_ylim3d([-10, 10])
+            axs[c].set_zlim3d([-10, 10])
+            axs[c].set_xlabel("X_Axis")
+            axs[c].set_ylabel("Y-Axis")
+            axs[c].set_zlabel("Z-Axis")
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+
+        time.sleep(0.1)
+        axs[0].cla()
+        axs[1].cla()
+
+        # for i, pose in enumerate([poses[0]]):
+        #     for comp_pose in best_extr2:
+        #         pose_wc = pose.compose(comp_pose)
+        #         plot.plot_pose3_on_axes(ax2, pose_wc, axis_length=1, P=None, scale=1)
+        #         camera = gtsam.PinholeCameraCal3_S2(pose_wc, K)
+        #         num_projected = 0
+        #         for j, point in enumerate(points):
+        #             #plot.plot_point3_on_axes(ax2, point, 'r*')
+        #             try:
+        #                 measurement = camera.project(point)
+        #                 if (measurement[0] > 1 and measurement[0] < 2 * K.px() and measurement[1] > 1 and measurement[
+        #                     1] < 2 * K.py()):
+        #                     num_projected = num_projected + 1
+        #                     plot.plot_point3_on_axes(ax2, point, 'b*')
+        #                 #else:
+        #                #     plot.plot_point3_on_axes(ax1, point, 'r*')
+        #                 # print("Measurement is out of bounds: ")
+        #                 # print(measurement)
+        #             except Exception:
+        #                 pass
+        # fig1.canvas.draw()
+        # fig1.canvas.flush_events()
+        # fig2.canvas.draw()
+        # fig2.canvas.flush_events()
+        # ax1.cla()
+        # ax2.cla()
+        # ax1.set_xlabel("X_Axis")
+        # ax1.set_ylabel("Y-Axis")
+        # ax1.set_zlabel("Z-Axis")
+        # ax2.set_xlabel("X_Axis")
+        # ax2.set_ylabel("Y-Axis")
+        # ax2.set_zlabel("Z-Axis")
+
     plt.ioff()
 
 

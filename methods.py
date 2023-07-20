@@ -495,5 +495,5 @@ def greedy_selection(points, poses, K,pose_rots, pose_trans, Nc, metric= Metric.
     rmse = utilities.compute_traj_error(result, poses)
     print("The RMSE of the estimated trajectory with best camera placement: "+ str(rmse))
 
-    return best_extr, max_inf, avail_cand
+    return best_extr, max_inf, rmse, avail_cand
 

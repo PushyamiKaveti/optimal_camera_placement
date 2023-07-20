@@ -228,15 +228,15 @@ def create_random_robot_traj(start_rot=np.eye(3), start_trans=np.array([0,0,0]),
     return poses
 
 def create_forward_side_robot_traj(start_rot=np.eye(3), start_trans=np.array([0,0,0]), num_poses=30, forward=True):
-    #plt.ion()
-    #fig1, ax1 = helper_functions.initialize_3d_plot(number=1, limits=np.array([[-30, 30], [-30, 30], [-30, 30]]),
-    #                                                view=[-30, -90])
+    # plt.ion()
+    # fig1, ax1 = visualize.initialize_3d_plot(number=1, limits=np.array([[-30, 30], [-30, 30], [-30, 30]]),
+    #                                                 view=[-30, -90])
     # plot GTSAM poses
     curPose = gtsam.Pose3(gtsam.Rot3(start_rot), gtsam.Point3(start_trans))
     poses = []
     for i in range(num_poses):
         poses.append(curPose)
-        #plot.plot_pose3_on_axes(ax1, curPose, axis_length=1, P=None, scale=1)
+        # plot.plot_pose3_on_axes(ax1, curPose, axis_length=1, P=None, scale=1)
 
         w = np.array([[0, 0, 0]]).T
         if forward:
