@@ -8,6 +8,10 @@ import time
 from matplotlib import cm
 figno = 2
 
+def reset():
+    global figno
+    figno = 1
+    plt.close("all")
 def initialize_3d_plot(number=None, title='Plot', axis_labels=['x', 'y', 'z'],view=[None,None],limits=None):
     fig = plt.figure(number)
     fig.clf()
@@ -36,7 +40,31 @@ def plot_3d_points(axes, vals, line_obj=None, *args, **kwargs):
         line_obj.set_data(vals[:,0], vals[:,1])
         line_obj.set_3d_properties(vals[:,2])
         return line_obj
+def initialize_2d_plot(number=None, title='Plot', axis_labels=['x', 'y'],limits=None):
+    global figno
+    fig = plt.figure(figno)
+    figno = figno+1
+    fig.clf()
+    ax = fig.add_subplot(111)
+    fig.subplots_adjust(0,0,1,1) # Make the plot tight
+    fig.suptitle(title)
+    ax.set_xlabel(axis_labels[0])
+    ax.set_ylabel(axis_labels[1])
+    if not (limits is None):
+        ax.set_xlim(*limits[0,:])
+        ax.set_ylim(*limits[1,:])
+    return fig,ax
 
+def plot_2d_points( vals, *args, **kwargs):
+    # plot
+    global figno
+    fig = plt.figure(figno)
+    figno = figno + 1
+    ax = fig.add_subplot(111)
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.scatter(vals[:,0],vals[:,1], *args, **kwargs )
+    plt.show()
 
 def rotate_coord_frame():
     plt.ion()

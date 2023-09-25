@@ -133,7 +133,7 @@ def compute_schur_fim(fim, num_poses):
     Hll = fim[0 : -num_poses*6, 0: -num_poses*6: ]
     Hlx = fim [0: -num_poses*6 , -num_poses*6 : ]
 
-    Hxx_schur = Hxx - Hlx.T @ np.linalg.inv(Hll) @ Hlx
+    Hxx_schur = Hxx - Hlx.T @ np.linalg.pinv(Hll) @ Hlx
     return Hxx_schur
 
 def getMLE_multicam_loc(poses, points, extrinsics, K):
