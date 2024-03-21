@@ -1,17 +1,34 @@
-Code Organization
+# OASIS : Optimal Arrangements for Sensing in SLAM
 
-1. Data generation 
-   1. creating trajectories - circle, foirward, backward, random, side
-   2. creating worlds - room, corridor, random
-   3. sampling functions for rotations (hopf, on a sphere), translations
+##Reference
+kindly cite our paper if you find this library useful:
+- Kaveti, P., Giamou, M., Singh, H., & Rosen, D. M. (2023). [**OASIS: Optimal Arrangements for Sensing in SLAM.**](https://arxiv.org/pdf/2309.10698.pdf). IEEE Intl. Conf. on Robotics and Automation (ICRA), 2024
 
-2. Visualization tools
-   1. visualize trajectories static
-   2. visualize trajectory movement with landmarks colored when they come into the view
-   3. visualize the camera configuration , with/ without the landmarks
-3. optimization/processing
-   1. different metrics - log det, minimum eigen value, rmse, crlb, 
-   2. optimization methods- greedy, analytical
-   3. factorgraog formulation -
-   
-4. COnfiguration, parameter spec/reading
+ ```bibtex
+@article{kaveti2023oasis,
+  title={OASIS: Optimal Arrangements for Sensing in SLAM},
+  author={Kaveti, Pushyami and Giamou, Matthew and Singh, Hanumant and Rosen, David M},
+  journal={arXiv preprint arXiv:2309.10698},
+  year={2023}
+}
+ ```
+##Dependencies
+Tested on ubuntu 20.04 LTS with Python3. You will need the following libraries.
+- numpy
+- scipy
+- gtsam (https://github.com/borglab/gtsam)
+- matplotlib
+
+Current version of the code support only simulated experiments.
+We are working on real dataset evaluation - stay tuned!
+
+## Run Simulation Examples
+- Use `--help` option to list all options to run the code. 
+- To run optimization for average performance across multiple simulations
+```bash
+python3 main_expectation.py
+```
+- To run optimization for single simulation
+```bash
+python3 main.py
+```

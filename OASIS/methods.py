@@ -1,7 +1,6 @@
 from enum import Enum
 import utilities
 import visualize
-import math
 import numpy as np
 import matplotlib.pyplot as plt
 from functools import partial

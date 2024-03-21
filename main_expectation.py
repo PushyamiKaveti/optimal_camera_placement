@@ -1,13 +1,13 @@
-import utilities
-import visualize
+from OASIS  import utilities
+from OASIS  import visualize
 from OASIS import methods
 from gtsam import Point3, Cal3_S2
 import numpy as np
 import os
 import time
 import random
-import core_utils as core
-import sim_data_utils as sdu
+from OASIS  import core_utils as core
+from OASIS  import sim_data_utils as sdu
 import argparse
 
 
