@@ -1,17 +1,11 @@
-import utilities
-import visualize
-from gtsam import Point3, Cal3_S2,PinholeCameraCal3_S2
+from OASIS import utilities
 import numpy as np
 import os
-import time
-import random
-import frank_wolfe as fwolf
-import methods
+from OASIS import core_utils as fwolf
 import argparse
-from scipy.optimize import minimize
 
 '''
-REal data testing
+REal data testing _ experimental 
 '''
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,

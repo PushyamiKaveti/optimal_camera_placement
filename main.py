@@ -1,6 +1,6 @@
-import utilities
-import visualize
-import methods
+from OASIS import utilities
+from OASIS import visualize
+from OASIS import methods
 from gtsam import Point3, Cal3_S2,PinholeCameraCal3_S2
 import numpy as np
 import math
