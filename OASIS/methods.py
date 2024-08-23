@@ -1,6 +1,6 @@
 from enum import Enum
-import utilities
-import visualize
+from . import utilities
+from . import visualize
 import numpy as np
 import matplotlib.pyplot as plt
 from functools import partial
@@ -8,7 +8,7 @@ from typing import List, Optional
 import time
 import gtsam
 from gtsam.utils import plot
-import core_utils as core
+from . import core_utils as core
 from gtsam import (DoglegOptimizer,
                          GenericProjectionFactorCal3_S2,
                          NonlinearFactorGraph, PinholeCameraCal3_S2, Point3,

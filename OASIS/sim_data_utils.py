@@ -1,5 +1,5 @@
 import numpy as np
-import visualize
+from . import visualize
 from gtsam import Point3, Cal3_S2, PinholeCameraCal3_S2, Pose3
 import math
 import gtsam

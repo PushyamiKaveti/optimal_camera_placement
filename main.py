@@ -4,6 +4,7 @@ from OASIS import methods
 from gtsam import Point3, Cal3_S2,PinholeCameraCal3_S2
 import numpy as np
 import math
+from OASIS  import sim_data_utils as sdu
 '''
 Experiment #3: Maximize the SUM of log det (Inf Mat) over a set of random trajectories to estimate a opt camera placement. 
 '''
@@ -48,9 +49,9 @@ if __name__ == '__main__':
     best_configs_brute = []
     num_cands = 2
 
-    pose_rots, pose_trans = utilities.generate_candidate_poses((0, 2 * math.pi), 4, (-math.pi / 2, math.pi / 2), 4)
+    pose_rots, pose_trans = sdu.generate_candidate_poses((0, 2 * math.pi), 4, (-math.pi / 2, math.pi / 2), 4)
     # circle
-    points, poses_circle = utilities.create_room_world(20, 12, K)
+    points, poses_circle = sdu.create_room_world(20, 12, K)
     best_config_circle, cost_circle = methods.greedy_selection(points, poses_circle, K, pose_rots, pose_trans, num_cands, methods.Metric.min_eig)
     # best_config_brute_cirle, cost_brute_circle = brute_force_selection_stereo(points, poses_circle, K, num_cands)
     trajs.append(poses_circle.copy())
@@ -66,7 +67,7 @@ if __name__ == '__main__':
     target = Point3(0.0, 3.0, height)
     camera = PinholeCameraCal3_S2.Lookat(position, target, up, K)
     rott = camera.pose().rotation().matrix()
-    poses_side = utilities.create_forward_side_robot_traj(rott, np.array([-5.0, 0.0, 5.0]), 20, False)
+    poses_side = sdu.create_forward_side_robot_traj(rott, np.array([-5.0, 0.0, 5.0]), 20, False)
     best_config_side, cost_side = methods.greedy_selection(points, poses_side, K, pose_rots, pose_trans, num_cands)
     # best_config_brute_side, cost_brute_side = brute_force_selection_stereo(points, poses_side, K, num_cands)
     trajs.append(poses_side.copy())
@@ -78,7 +79,7 @@ if __name__ == '__main__':
     visualize.show_camconfigs(best_config_side)
 
     # #forward
-    poses = utilities.create_forward_side_robot_traj(rott, np.array([0.0, -5.0, 5.0]), 20)
+    poses = sdu.create_forward_side_robot_traj(rott, np.array([0.0, -5.0, 5.0]), 20)
     best_config, cost_forward = methods.greedy_selection(points, poses, K, pose_rots, pose_trans, num_cands)
     #   best_config_brute_forward, cost_brute_forward= brute_force_selection_stereo(points, poses, K, num_cands)
     trajs.append(poses.copy())
@@ -89,7 +90,7 @@ if __name__ == '__main__':
     print("The logdet for forward traj: {:.2f} ".format(cost_forward))
 
     # #random
-    poses = utilities.create_random_robot_traj(rott, np.array([0.0, -5.0, 5.0]), 20)
+    poses = sdu.create_random_robot_traj(rott, np.array([0.0, -5.0, 5.0]), 20)
     best_config, cost_rand = methods.greedy_selection(points, poses, K, pose_rots, pose_trans, num_cands)
     #   best_config_brute_rand, cost_brute_rand = brute_force_selection_stereo(points, poses, K, num_cands)
     trajs.append(poses.copy())
