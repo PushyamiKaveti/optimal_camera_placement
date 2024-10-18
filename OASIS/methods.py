@@ -226,6 +226,7 @@ def greedy_selection_new(measurements, intrinsics, all_cands, points, poses, Nc,
     best_selection_indices = []
     best_config = []
     best_score = 0.0
+    
     # For each camera
     for i in range(0, Nc):
         max_inf = 0.0
@@ -258,6 +259,59 @@ def greedy_selection_new(measurements, intrinsics, all_cands, points, poses, Nc,
                     max_inf = least_fim_eig
                     selected_cand = j
 
+        best_score = max_inf
+        best_config.append(all_cands[selected_cand])
+        best_selection_indices.append(selected_cand)
+        avail_cand[selected_cand] = 0
+        print("Best Score till now: " + str(best_score))
+        print("Next best Camera is: ")
+        print(best_config[-1])
+        print("------------------")
+
+    print("Selected candidates are : ")
+    print(np.argwhere(avail_cand.flatten() == 0))
+
+    return best_config, best_selection_indices, best_score
+
+def greedy_selection_exp(measurements, intrinsics, all_cands, points, poses, Nc, h_prior, num_runs, metric= Metric.logdet):
+    avail_cand = np.ones((len(all_cands), 1))
+    best_selection_indices = []
+    best_config = []
+    best_score = 0.0
+    # For each camera
+    for i in range(0, Nc):
+        max_inf = 0.0
+        selected_cand = 0
+        for j, cand in enumerate(all_cands):
+            if avail_cand[j, 0] == 1:
+                cur_cands = best_config.copy()
+                cur_cands.append(cand)
+                cur_selection = best_selection_indices.copy()
+                cur_selection.append(j)
+                least_fim_eig = 0.0
+                # Here we should build H for all trajectories, find schur and eig values for all trahectories and maximize that sum
+                for traj_ind in range(num_runs):
+                    h_full,  graph, gtvals, poses_mask, points_mask = core.build_hfull(measurements[traj_ind], points[traj_ind], poses[traj_ind], intrinsics[traj_ind], all_cands, cur_selection)
+                    h_full = h_full + h_prior
+                    fim = core.compute_schur_fim(h_full, len(poses[traj_ind]))
+                    # least_fim_eig = math.log(np.linalg.det(np.eye(fim.shape[0]) + fim))
+                    if metric == Metric.logdet:
+                        sign, least_fim_eig = np.linalg.slogdet(fim)
+                        least_fim_eig = sign * least_fim_eig
+                        # print(np.linalg.det(fim))
+                        # print(least_fim_eig)
+                        # print("-------------------------")
+                    if metric == Metric.min_eig:
+                        assert (utilities.check_symmetric(fim))
+                        #print( np.linalg.eigvalsh(fim)[0:8])
+                        least_fim_eig = least_fim_eig + np.linalg.eigvalsh(fim)[0]
+                    # least_fim_eig = compute_logdet(fim)
+
+                if least_fim_eig > max_inf:
+                    max_inf = least_fim_eig
+                    selected_cand = j
+                    # best_graph = graph
+                    # best_gtvals = gt_vals
         best_score = max_inf
         best_config.append(all_cands[selected_cand])
         best_selection_indices.append(selected_cand)
@@ -566,139 +620,6 @@ def franke_wolfe_exp(inf_mats,H0, n_iters, selection_init, k,num_poses, num_runs
 
     return final_solution, selection_cur, min_eig_val_rounded, min_eig_val_unrounded, i
 
-def greedy_selection_exp(measurements, intrinsics, all_cands, points, poses, Nc, h_prior, num_runs, metric= Metric.logdet):
-    avail_cand = np.ones((len(all_cands), 1))
-
-
-    best_selection_indices = []
-    best_config = []
-    best_score = 0.0
-    # For each camera
-    for i in range(0, Nc):
-        max_inf = 0.0
-        selected_cand = 0
-        for j, cand in enumerate(all_cands):
-            if avail_cand[j, 0] == 1:
-                cur_cands = best_config.copy()
-                cur_cands.append(cand)
-                cur_selection = best_selection_indices.copy()
-                cur_selection.append(j)
-                least_fim_eig = 0.0
-                # Here we should build H for all trajectories, find schur and eig values for all trahectories and maximize that sum
-                for traj_ind in range(num_runs):
-                    h_full,  graph, gtvals, poses_mask, points_mask = core.build_hfull(measurements[traj_ind], points[traj_ind], poses[traj_ind], intrinsics[traj_ind], all_cands, cur_selection)
-                    h_full = h_full + h_prior
-                    fim = core.compute_schur_fim(h_full, len(poses[traj_ind]))
-                    # least_fim_eig = math.log(np.linalg.det(np.eye(fim.shape[0]) + fim))
-                    if metric == Metric.logdet:
-                        sign, least_fim_eig = np.linalg.slogdet(fim)
-                        least_fim_eig = sign * least_fim_eig
-                        # print(np.linalg.det(fim))
-                        # print(least_fim_eig)
-                        # print("-------------------------")
-                    if metric == Metric.min_eig:
-                        assert (utilities.check_symmetric(fim))
-                        #print( np.linalg.eigvalsh(fim)[0:8])
-                        least_fim_eig = least_fim_eig + np.linalg.eigvalsh(fim)[0]
-                    # least_fim_eig = compute_logdet(fim)
-
-                if least_fim_eig > max_inf:
-                    max_inf = least_fim_eig
-                    selected_cand = j
-                    # best_graph = graph
-                    # best_gtvals = gt_vals
-        best_score = max_inf
-        best_config.append(all_cands[selected_cand])
-        best_selection_indices.append(selected_cand)
-        avail_cand[selected_cand] = 0
-        print("Best Score till now: " + str(best_score))
-        print("Next best Camera is: ")
-        print(best_config[-1])
-        print("------------------")
-
-    print("Selected candidates are : ")
-    print(np.argwhere(avail_cand.flatten() == 0))
-
-    return best_config, best_selection_indices, best_score
-
-# def run_single_experiment_exp(poses, points, measurements, intrinsics, extr_cand, select_k, h_prior, num_runs):
-
-#     ''' Perform greedy selection method using minimum eigen value metric'''
-#     s_g = time.time()
-#     best_config_g, best_selection_indices, best_score_g = greedy_selection_exp(measurements, intrinsics, extr_cand, points,
-#                                                                                        poses, select_k,h_prior,num_runs,
-#                                                                                        metric=Metric.min_eig)
-#     e_g = time.time()
-#     time_greedy = e_g - s_g
-#     ''' Brute force selection'''
-#     # best_config_brute_cirle, cost_brute_circle = brute_force_selection_stereo(points, poses_circle, K, num_cands)
-#     # print("best config circle: ")
-#     # print(best_config_circle)
-#     print("The score for traj greedy: {:.9f} ".format(best_score_g))
-
-#     ''' Construct factor graph as if we have all the 300 cameras. edges going between the poses and the landmarks'''
-#     ''' write the infomat as a combination of the selection variables.'''
-#     s_opt_prep = time.time()
-#     all_inf_mats=[]
-#     all_debug_nr_facs=[]
-#     for traj_ind in range(num_runs):
-#         inf_mats, debug_nr_facs = core.construct_candidate_inf_mats(measurements[traj_ind], intrinsics[traj_ind], extr_cand, points[traj_ind], poses[traj_ind])
-#         all_inf_mats.append(inf_mats)
-#         all_debug_nr_facs.append(debug_nr_facs)
-#     num_cands = len(extr_cand)
-#     e_opt_prep = time.time()
-
-#     s_f = time.time()
-#     # selection_init = np.zeros(num_cands)
-#     ''' uncomment these lines if we want to use greedy solution as the initial estimate'''
-#     # for i in best_selection_indices:
-#     #     selection_init[i] = 1
-#     ''' This is to input some initialization'''
-#     # selection_init[0] = 1
-#     # selection_init[1] = 1
-#     #selection_init[2] = 1
-#     ''' uncomment these lines if we want to give equal weight to all configurations as initial point'''
-#     selection_init = np.ones(num_cands)
-#     selection_init = selection_init*select_k/num_cands
-#     ''' build the prior FIM '''
-#     num_poses = len(poses[0])
-
-
-#     ''' call frankewolf iterations'''
-#     print("################# GREEDY SELECTION ############################")
-#     selection_fw, selection_fw_unr , cost_fw, cost_fw_unrounded, num_iters = franke_wolfe_exp(all_inf_mats, h_prior, 600, selection_init.flatten(), select_k, num_poses, num_runs)
-#     e_f = time.time()
-#     print("The Score for traj franke_wolfe with solution. rounded: {:.9f}, unrounded: {:.9f} ".format(cost_fw, cost_fw_unrounded))
-#     print("selection: ")
-#     print(np.argwhere(selection_fw == 1))
-
-#     time_fw = (e_opt_prep - s_opt_prep) + (e_f - s_f)
-
-#     s_scipy = time.time()
-#     selection_scipy, selection_scipy_unr, cost_scipy, cost_scipy_unrounded = selection_fw, selection_fw_unr , cost_fw, cost_fw_unrounded
-#     #selection_scipy, selection_scipy_unr, cost_scipy, cost_scipy_unrounded = scipy_minimize(inf_mats, h_prior, selection_init, select_k, num_poses)
-#     e_scipy = time.time()
-#     time_scipy = (e_opt_prep - s_opt_prep) + (e_scipy - s_scipy)
-#     print("The Score for traj scipy with solution. rounded: {:.9f}, unrounded: {:.9f} ".format(cost_scipy, cost_scipy_unrounded))
-#     print("selection: ")
-#     print(np.argwhere(selection_scipy==1))
-
-#     best_selection_indices_fw = []
-#     best_configs_fw=[]
-#     for i in range(selection_fw.shape[0]):
-#         if selection_fw[i] == 1:
-#             best_configs_fw.append(extr_cand[i])
-#             best_selection_indices_fw.append(i)
-#     best_selection_indices_scipy = []
-#     for i in range(selection_scipy.shape[0]):
-#         if selection_scipy[i] == 1:
-#             best_selection_indices_scipy.append(i)
-#     print(best_selection_indices_fw)
-
-
-#     return best_score_g, best_config_g, best_selection_indices,time_greedy, cost_fw, cost_fw_unrounded, best_configs_fw,\
-#            best_selection_indices_fw, selection_fw_unr,  time_fw,num_iters, cost_scipy, cost_scipy_unrounded, \
-#            best_selection_indices_scipy, selection_scipy_unr, time_scipy
 
 def run_single_experiment_exp(poses, points, measurements, intrinsics, extr_cand, select_k, h_prior, num_runs):
 
@@ -804,80 +725,6 @@ def run_single_experiment(poses, points, measurements, intrinsics, extr_cand, se
 
     return best_score_g, best_config_g, best_selection_indices, time_greedy, cost_fw, cost_fw_unrounded, best_configs_fw,\
            best_selection_indices_fw, selection_fw_unr, time_fw, num_iters
-
-
-# def run_single_experiment(poses, points, measurements, intrinsics, extr_cand, select_k, h_prior):
-
-#     ''' Perform greedy selection method using minimum eigen value metric'''
-#     s_g = time.time()
-#     best_config_g, best_selection_indices, best_score_g = greedy_selection_new(measurements, intrinsics, extr_cand, points,
-#                                                                                        poses, select_k,h_prior,
-#                                                                                        metric=Metric.min_eig)
-#     e_g = time.time()
-#     time_greedy = e_g - s_g
-#     ''' Brute force selection'''
-#     # best_config_brute_cirle, cost_brute_circle = brute_force_selection_stereo(points, poses_circle, K, num_cands)
-#     # print("best config circle: ")
-#     # print(best_config_circle)
-#     print("The score for traj greedy: {:.9f} ".format(best_score_g))
-
-#     ''' Construct factor graph as if we have all the 300 cameras. edges going between the poses and the landmarks'''
-#     ''' write the infomat as a combination of the selection variables.'''
-#     s_opt_prep = time.time()
-#     inf_mats, debug_nr_facs = core.construct_candidate_inf_mats(measurements, intrinsics, extr_cand, points, poses)
-#     num_cands = len(extr_cand)
-#     e_opt_prep = time.time()
-
-#     s_f = time.time()
-#     # selection_init = np.zeros(num_cands)
-#     ''' uncomment these lines if we want to use greedy solution as the initial estimate'''
-#     # for i in best_selection_indices:
-#     #     selection_init[i] = 1
-#     ''' This is to input some initialization'''
-#     # selection_init[0] = 1
-#     # selection_init[1] = 1
-#     #selection_init[2] = 1
-#     ''' uncomment these lines if we want to give equal weight to all configurations as initial point'''
-#     selection_init = np.ones(num_cands)
-#     selection_init = selection_init*select_k/num_cands
-#     ''' build the prior FIM '''
-#     num_poses = len(poses)
-#     num_points = len(points)
-
-#     ''' call frankewolf iterations'''
-#     print("################# GREEDY SELECTION ############################")
-#     selection_fw, selection_fw_unr , cost_fw, cost_fw_unrounded, num_iters = franke_wolfe(inf_mats, h_prior, 600, selection_init.flatten(), select_k, num_poses)
-#     e_f = time.time()
-#     print("The Score for traj franke_wolfe with solution. rounded: {:.9f}, unrounded: {:.9f} ".format(cost_fw, cost_fw_unrounded))
-#     print("selection: ")
-#     print(np.argwhere(selection_fw == 1))
-
-#     time_fw = (e_opt_prep - s_opt_prep) + (e_f - s_f)
-
-#     s_scipy = time.time()
-#     selection_scipy, selection_scipy_unr, cost_scipy, cost_scipy_unrounded = selection_fw, selection_fw_unr , cost_fw, cost_fw_unrounded
-#     #selection_scipy, selection_scipy_unr, cost_scipy, cost_scipy_unrounded = scipy_minimize(inf_mats, h_prior, selection_init, select_k, num_poses)
-#     e_scipy = time.time()
-#     time_scipy = (e_opt_prep - s_opt_prep) + (e_scipy - s_scipy)
-#     print("The Score for traj scipy with solution. rounded: {:.9f}, unrounded: {:.9f} ".format(cost_scipy, cost_scipy_unrounded))
-#     print("selection: ")
-#     print(np.argwhere(selection_scipy==1))
-
-#     best_selection_indices_fw = []
-#     best_configs_fw=[]
-#     for i in range(selection_fw.shape[0]):
-#         if selection_fw[i] == 1:
-#             best_configs_fw.append(extr_cand[i])
-#             best_selection_indices_fw.append(i)
-#     best_selection_indices_scipy = []
-#     for i in range(selection_scipy.shape[0]):
-#         if selection_scipy[i] == 1:
-#             best_selection_indices_scipy.append(i)
-#     print(best_selection_indices_fw)
-
-#     return best_score_g, best_config_g, best_selection_indices,time_greedy, cost_fw, cost_fw_unrounded, best_configs_fw,\
-#            best_selection_indices_fw, selection_fw_unr,  time_fw,num_iters, cost_scipy, cost_scipy_unrounded, \
-#            best_selection_indices_scipy, selection_scipy_unr, time_scipy
 
 def check_and_filter_points(poses, points, extrinsics, K, toplot=False):
     if toplot:
