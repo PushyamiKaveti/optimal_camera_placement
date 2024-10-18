@@ -23,11 +23,9 @@ def compute_opt_config_sum_inf():
     pose_rots, pose_trans = utilities.generate_candidate_poses((0, 2 * math.pi), 4, (-math.pi / 2, math.pi / 2), 4)
     #random
     poses = utilities.create_random_robot_traj(rott, np.array([0.0, -5.0, 5.0]), 20)
-    best_config, cost_rand = methods.greedy_selection(points, poses, K, pose_rots, pose_trans, num_cands)
-    #   best_config_brute_rand, cost_brute_rand = brute_force_selection_stereo(points, poses, K, num_cands)
+    best_config_circle, cost_circle, _, _ = methods.greedy_selection(points, poses_circle, K, pose_rots, pose_trans, num_cands, methods.Metric.min_eig)
     trajs.append(poses.copy())
     best_configs.append(best_config.copy())
-    #  best_configs_brute.append(best_config_brute_rand.copy())
     print("best config random: ")
     print(best_config)
     print("The logdet for random traj: {:.2f} ".format(cost_rand))
@@ -47,12 +45,12 @@ if __name__ == '__main__':
     trajs = []
     best_configs = []
     best_configs_brute = []
-    num_cands = 2
+    num_cands = 6
 
     pose_rots, pose_trans = sdu.generate_candidate_poses((0, 2 * math.pi), 4, (-math.pi / 2, math.pi / 2), 4)
     # circle
     points, poses_circle = sdu.create_room_world(20, 12, K)
-    best_config_circle, cost_circle = methods.greedy_selection(points, poses_circle, K, pose_rots, pose_trans, num_cands, methods.Metric.min_eig)
+    best_config_circle, cost_circle, _, _ = methods.greedy_selection(points, poses_circle, K, pose_rots, pose_trans, num_cands, methods.Metric.min_eig)
     # best_config_brute_cirle, cost_brute_circle = brute_force_selection_stereo(points, poses_circle, K, num_cands)
     trajs.append(poses_circle.copy())
     best_configs.append(best_config_circle.copy())
