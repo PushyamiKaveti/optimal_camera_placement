@@ -236,27 +236,25 @@ if __name__ == '__main__':
 
             ''' ###########################################################################################################'''
             best_score_g, best_config_g, selected_inds_g, time_greedy, best_score_fw,best_score_fw_unrounded,\
-            best_config_fw, selected_inds_fw, solution_fw_unr, time_fw, num_iters_fw, best_score_scipy, best_score_scipy_unrounded,\
-            selected_inds_scipy, solution_scipy_unr, time_scipy = methods.run_single_experiment_exp(all_poses, all_points, all_measurements, all_intrinsics, extr_cand, select_k, h_prior, args.num_runs) #extr_cand, intrinsics, select_k and h_prior are same for all simulations
+            best_config_fw, selected_inds_fw, solution_fw_unr, time_fw, num_iters_fw = methods.run_single_experiment_exp(all_poses, all_points, all_measurements, all_intrinsics, extr_cand, select_k, h_prior, args.num_runs) #extr_cand, intrinsics, select_k and h_prior are same for all simulations
 
             ''' Just duplicate entries for times, scores and candidates for each run. Note that we have only one set of scores, time and selected candidate. but RMSEs exist for each individual trajectrory'''
             for traj_ind in range(args.num_runs):
                 greedy_scores[select_k].append(best_score_g)
                 fw_scores[select_k].append(best_score_fw)
                 fw_scores_unrounded[select_k].append(best_score_fw_unrounded)
-                scipy_scores[select_k].append(best_score_scipy)
-                scipy_scores_unrounded[select_k].append(best_score_scipy_unrounded)
+                # scipy_scores[select_k].append(best_score_scipy)
+                # scipy_scores_unrounded[select_k].append(best_score_scipy_unrounded)
 
                 greedy_selected_cands[select_k].append(selected_inds_g)
                 fw_selected_cands[select_k].append(selected_inds_fw)
-                scipy_selected_cands[select_k].append(selected_inds_scipy)
+                # scipy_selected_cands[select_k].append(selected_inds_scipy)
 
                 fw_solution_unr_list[select_k].append(solution_fw_unr.tolist())
-                scipy_solution_unr_list[select_k].append(solution_scipy_unr.tolist())
+                # scipy_solution_unr_list[select_k].append(solution_scipy_unr.tolist())
 
                 times_g[select_k].append(time_greedy)
                 times_fw[select_k].append(time_fw)
-                times_scipy[select_k].append(time_scipy)
                 iters_fw[select_k].append(num_iters_fw)
 
             '''
@@ -284,7 +282,6 @@ if __name__ == '__main__':
                 rmse_fw_loc[select_k].append(rmse_fw_l)
                 rmse_fw_gt_slam[select_k].append(rmse_fw_gt)
                 rmse_fw_gt_loc[select_k].append(rmse_fw_gt_l)
-
 
             visualize.reset()
 
