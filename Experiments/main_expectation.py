@@ -27,13 +27,10 @@ if __name__ == '__main__':
                                      description='runs experiments for different benchmark \
                                                  algorithms for optimal camera placement\n\n')
 
-    parser.add_argument('-n', '--num_runs', help='number of runs in the experiment', default=10)
+    parser.add_argument('-n', '--num_runs', help='number of runs in the experiment', default=5)
     parser.add_argument('-s', '--select_k', help='number of cameras to select', default=2)
     parser.add_argument('-t', '--traj_type', help='Type of trajectory 1:circle, 2:side, 3:forward, 4:random', default=4)
-    parser.add_argument('-o', '--output_dir', help='Output dir for output bag file', default='.')
-    parser.add_argument('-c', '--config_file',
-                        help='Yaml file which specifies the topic names, frequency of selection and time range',
-                        default='config/config.yaml')
+    parser.add_argument('-o', '--output_dir', help='Output dir for output bag file', default='./results')
 
 
     args = parser.parse_args()
