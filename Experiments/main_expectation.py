@@ -1,15 +1,15 @@
 from OASIS  import utilities
 from OASIS  import visualize
 from OASIS import methods
-from gtsam import Point3, Cal3_S2
+from gtsam import Cal3_S2
 import numpy as np
 import os
-import time
 import random
-from OASIS  import core_utils as core
-from OASIS  import sim_data_utils as sdu
+from ProblemBuilder import FIM as core
+from DataGenerator import sim_data_utils as sdu
 import argparse
-
+from Experiments import exp_utils
+import shutil
 
 '''
 Generate multiple simulations of a trajectory and landmarks within
@@ -38,9 +38,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    num_points = 25*4
-    num_poses =50
-    max_select_k = 7
+    num_points = 10*4
+    num_poses =10
+    max_select_k = 2
     K = Cal3_S2(100.0, 100.0, 0.0, 50.0, 50.0)
     ''' Number of cameras to be selected'''
     #select_k = args.select_k
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
         output_file_Path = os.path.join(args.output_dir, traj+"_{}runs".format(args.num_runs))
         if os.path.exists(output_file_Path):
-            os.rmdir(output_file_Path)
+            shutil.rmtree(output_file_Path)
         os.mkdir(output_file_Path)
 
         # Setup the parameters
@@ -139,7 +139,7 @@ if __name__ == '__main__':
             poses, points, measurements, extr_cand, intrinsics, poses_with_noise, points_with_noise = sdu.generate_simulation_data(K, traj_ind, num_points, num_poses, False ) #args.traj_type
 
             ''' write the data to log'''
-            utilities.write_data_logs(os.path.join(output_file_Path, "data_log_" + traj + "_{}.txt".format(exp_ind)),
+            exp_utils.write_data_logs(os.path.join(output_file_Path, "data_log_" + traj + "_{}.txt".format(exp_ind)),
                                       poses, points, extr_cand, measurements, poses_with_noise,
                                       points_with_noise)
 
@@ -148,11 +148,11 @@ if __name__ == '__main__':
             measurements_equal, extr_cand_equal, intrinsics_e = sdu.generate_meas_extr_EQUAL(poses, points, K, list(range(2,max_select_k)))
             measurements_stnd, extr_cand_stnd, intrinsics_s = sdu.generate_meas_extr_STANDARD(poses, points, K, list(range(2,max_select_k)))
             ''' write the data to log for EQUAL'''
-            utilities.write_data_logs(os.path.join(output_file_Path, "data_log_equal_" + traj + "_{}.txt".format(exp_ind)),
+            exp_utils.write_data_logs(os.path.join(output_file_Path, "data_log_equal_" + traj + "_{}.txt".format(exp_ind)),
                                       poses, points, extr_cand_equal, measurements_equal, poses_with_noise,
                                       points_with_noise)
             ''' write the data to log for STANDARD'''
-            utilities.write_data_logs(os.path.join(output_file_Path, "data_log_standard_" + traj + "_{}.txt".format(exp_ind)),
+            exp_utils.write_data_logs(os.path.join(output_file_Path, "data_log_standard_" + traj + "_{}.txt".format(exp_ind)),
                                       poses, points, extr_cand_stnd, measurements_stnd, poses_with_noise,
                                       points_with_noise)
             all_poses.append(poses)
@@ -192,9 +192,9 @@ if __name__ == '__main__':
             score_stnd = 0.0
             score_rand = 0.0
             for traj_ind in range(args.num_runs):
-                score_equal = score_equal + core.compute_info_metric(all_poses[traj_ind], all_points[traj_ind], all_measurements_equal[traj_ind], all_intrinsics_e[traj_ind], all_extr_cand_equal[traj_ind], selection_equal, h_prior)
-                score_stnd = score_stnd + core.compute_info_metric(all_poses[traj_ind], all_points[traj_ind], all_measurements_stnd[traj_ind],all_intrinsics_s[traj_ind], all_extr_cand_stnd[traj_ind], selection_stnd, h_prior)
-                score_rand = score_rand + core.compute_info_metric(all_poses[traj_ind], all_points[traj_ind], all_measurements[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selection_rand, h_prior)
+                score_equal = score_equal + exp_utils.compute_info_metric(all_poses[traj_ind], all_points[traj_ind], all_measurements_equal[traj_ind], all_intrinsics_e[traj_ind], all_extr_cand_equal[traj_ind], selection_equal, h_prior)
+                score_stnd = score_stnd + exp_utils.compute_info_metric(all_poses[traj_ind], all_points[traj_ind], all_measurements_stnd[traj_ind],all_intrinsics_s[traj_ind], all_extr_cand_stnd[traj_ind], selection_stnd, h_prior)
+                score_rand = score_rand + exp_utils.compute_info_metric(all_poses[traj_ind], all_points[traj_ind], all_measurements[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selection_rand, h_prior)
             ''' Just duplicate entries for times, scores and candidates for each run. Note that we have only one set of scores, time and selected candidate. but RMSEs exist for each individual trajectrory'''
             for traj_ind in range(args.num_runs):
                 equal_scores[select_k].append(score_equal)
@@ -207,25 +207,25 @@ if __name__ == '__main__':
 
             print("RMSE for EQUAL, STANDARD and RAND")
             for traj_ind in range(args.num_runs):
-                rmse_equal = core.compute_rmse(all_measurements_equal[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics_e[traj_ind], all_extr_cand_equal[traj_ind], selection_equal, all_poses_with_noise[traj_ind],
+                rmse_equal = exp_utils.compute_rmse(all_measurements_equal[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics_e[traj_ind], all_extr_cand_equal[traj_ind], selection_equal, all_poses_with_noise[traj_ind],
                                           all_points_with_noise[traj_ind], prior_scale)
-                rmse_equal_l = core.compute_rmse(all_measurements_equal[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics_e[traj_ind],  all_extr_cand_equal[traj_ind], selection_equal,
+                rmse_equal_l = exp_utils.compute_rmse(all_measurements_equal[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics_e[traj_ind],  all_extr_cand_equal[traj_ind], selection_equal,
                                             all_poses_with_noise[traj_ind], all_points_with_noise[traj_ind], prior_scale, loc=True)
 
                 rmse_equal_slam[select_k].append(rmse_equal)
                 rmse_equal_loc[select_k].append(rmse_equal_l)
 
-                rmse_stnd = core.compute_rmse(all_measurements_stnd[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics_s[traj_ind], all_extr_cand_stnd[traj_ind], selection_stnd,
+                rmse_stnd = exp_utils.compute_rmse(all_measurements_stnd[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics_s[traj_ind], all_extr_cand_stnd[traj_ind], selection_stnd,
                                           all_poses_with_noise[traj_ind], all_points_with_noise[traj_ind], prior_scale)
-                rmse_stnd_l = core.compute_rmse(all_measurements_stnd[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics_s[traj_ind], all_extr_cand_stnd[traj_ind], selection_stnd,
+                rmse_stnd_l = exp_utils.compute_rmse(all_measurements_stnd[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics_s[traj_ind], all_extr_cand_stnd[traj_ind], selection_stnd,
                                             all_poses_with_noise[traj_ind], all_points_with_noise[traj_ind],prior_scale, loc=True)
 
                 rmse_stnd_slam[select_k].append(rmse_stnd)
                 rmse_stnd_loc[select_k].append(rmse_stnd_l)
 
-                rmse_rand = core.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selection_rand,
+                rmse_rand = exp_utils.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selection_rand,
                                           all_poses_with_noise[traj_ind],all_points_with_noise[traj_ind], prior_scale)
-                rmse_rand_l = core.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selection_rand,
+                rmse_rand_l = exp_utils.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selection_rand,
                                             all_poses_with_noise[traj_ind], all_points_with_noise[traj_ind], prior_scale, loc=True)
 
                 rmse_rand_slam[select_k].append(rmse_rand)
@@ -263,10 +263,10 @@ if __name__ == '__main__':
             '''---------------------- '''
             print("RMSE for Greedy-------------------------------------")
             for traj_ind in range(args.num_runs):
-                rmse_g = core.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind],selected_inds_g,all_poses_with_noise[traj_ind], all_points_with_noise[traj_ind],prior_scale )
-                rmse_g_loc = core.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selected_inds_g, all_poses_with_noise[traj_ind], all_points_with_noise[traj_ind], prior_scale,loc=True)
-                rmse_g_gt = core.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selected_inds_g,  all_poses[traj_ind],all_points[traj_ind],prior_scale)
-                rmse_g_gt_loc = core.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selected_inds_g, all_poses[traj_ind],all_points[traj_ind],prior_scale, loc=True)
+                rmse_g = exp_utils.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind],selected_inds_g,all_poses_with_noise[traj_ind], all_points_with_noise[traj_ind],prior_scale )
+                rmse_g_loc = exp_utils.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selected_inds_g, all_poses_with_noise[traj_ind], all_points_with_noise[traj_ind], prior_scale,loc=True)
+                rmse_g_gt = exp_utils.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selected_inds_g,  all_poses[traj_ind],all_points[traj_ind],prior_scale)
+                rmse_g_gt_loc = exp_utils.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selected_inds_g, all_poses[traj_ind],all_points[traj_ind],prior_scale, loc=True)
                 rmse_greedy_slam[select_k].append(rmse_g)
                 rmse_greedy_loc[select_k].append(rmse_g_loc)
                 rmse_greedy_gt_slam[select_k].append(rmse_g_gt)
@@ -274,10 +274,10 @@ if __name__ == '__main__':
 
             print("RMSE for Franke-wolfe------------------------------------------------")
             for traj_ind in range(args.num_runs):
-                rmse_fw = core.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selected_inds_fw, all_poses_with_noise[traj_ind], all_points_with_noise[traj_ind], prior_scale)
-                rmse_fw_l = core.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selected_inds_fw, all_poses_with_noise[traj_ind], all_points_with_noise[traj_ind], prior_scale, loc=True)
-                rmse_fw_gt = core.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selected_inds_fw, all_poses[traj_ind], all_points[traj_ind], prior_scale)
-                rmse_fw_gt_l = core.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selected_inds_fw, all_poses[traj_ind], all_points[traj_ind], prior_scale, loc=True)
+                rmse_fw = exp_utils.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selected_inds_fw, all_poses_with_noise[traj_ind], all_points_with_noise[traj_ind], prior_scale)
+                rmse_fw_l = exp_utils.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selected_inds_fw, all_poses_with_noise[traj_ind], all_points_with_noise[traj_ind], prior_scale, loc=True)
+                rmse_fw_gt = exp_utils.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selected_inds_fw, all_poses[traj_ind], all_points[traj_ind], prior_scale)
+                rmse_fw_gt_l = exp_utils.compute_rmse(all_measurements[traj_ind], all_poses[traj_ind], all_points[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selected_inds_fw, all_poses[traj_ind], all_points[traj_ind], prior_scale, loc=True)
                 rmse_fw_slam[select_k].append(rmse_fw)
                 rmse_fw_loc[select_k].append(rmse_fw_l)
                 rmse_fw_gt_slam[select_k].append(rmse_fw_gt)

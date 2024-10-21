@@ -1,7 +1,7 @@
 from OASIS import utilities
 import numpy as np
 import os
-from OASIS import core_utils as fwolf
+from ProblemBuilder import FIM as fwolf
 import argparse
 
 '''

@@ -4,7 +4,8 @@ from OASIS import methods
 from gtsam import Point3, Cal3_S2,PinholeCameraCal3_S2
 import numpy as np
 import math
-from OASIS  import sim_data_utils as sdu
+from DataGenerator import sim_data_utils as sdu
+
 '''
 Experiment #3: Maximize the SUM of log det (Inf Mat) over a set of random trajectories to estimate a opt camera placement. 
 '''

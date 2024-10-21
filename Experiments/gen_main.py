@@ -1,10 +1,11 @@
 from OASIS import utilities
 from OASIS import visualize
 from OASIS import methods
-from gtsam import Point3, Cal3_S2, PinholeCameraCal3_S2
+from gtsam import Point3, Cal3_S2
 import numpy as np
 import math
-from OASIS import sim_data_utils as sdu
+from DataGenerator import sim_data_utils as sdu
+
 
 def compute_opt_config_sum_inf():
     K = Cal3_S2(50.0, 50.0, 0.0, 50.0, 50.0)
