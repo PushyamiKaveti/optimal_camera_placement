@@ -14,6 +14,8 @@ from gtsam import (DoglegOptimizer,
                    GenericProjectionFactorCal3_S2,
                    NonlinearFactorGraph, PinholeCameraCal3_S2, PriorFactorPoint3, PriorFactorPose3, Values)
 from Experiments import exp_utils
+from scipy.optimize import minimize, Bounds
+from numpy import linalg as la
 
 L = gtsam.symbol_shorthand.L
 X = gtsam.symbol_shorthand.X
@@ -396,7 +398,7 @@ def gen_frank_wolfe(inf_mats, H0, n_iters, selection_init, k, num_poses, A, b):
     print(f"norm of the gradient : {np.linalg.norm(selection_cur):.6f}")
     print(selection_cur)
 
-    final_solution = fim.roundsolution(selection_cur, k)
+    final_solution = roundsolution(selection_cur, k)
     print(final_solution)
 
     min_eig_val_unrounded, _, _ = fim.find_min_eig_pair(inf_mats, selection_cur, H0, num_poses)
@@ -478,7 +480,7 @@ def gen_frank_wolfe_exp(inf_mats, H0, n_iters, selection_init, k, num_poses, num
     print(selection_cur)
 
     # Final solution rounding
-    final_solution = fim.roundsolution(selection_cur, k)
+    final_solution = roundsolution(selection_cur, k)
     print(final_solution)
 
     # Compute the eigenvalues for both rounded and unrounded solutions
@@ -522,7 +524,7 @@ def frank_wolfe(inf_mats, H0, n_iters, selection_init, k, num_poses):
             grad[ind] = min_eig_vec.T @ grad_schur @ min_eig_vec
 
         #round the solution and pick top k
-        rounded_sol = fim.roundsolution(grad, k)
+        rounded_sol = roundsolution(grad, k)
 
         if abs(min_eig_val - prev_min_eig) < 1e-7:   #1e-8 for prior of 1
             break
@@ -540,7 +542,7 @@ def frank_wolfe(inf_mats, H0, n_iters, selection_init, k, num_poses):
     print(selection_cur)
 
     #final_solution = roundsolution_breakties(selection_cur, k, inf_mats, H0)
-    final_solution = fim.roundsolution(selection_cur, k)
+    final_solution = roundsolution(selection_cur, k)
     print(final_solution)
     min_eig_val_unrounded, _, _ = fim.find_min_eig_pair(inf_mats, selection_cur, H0, num_poses)
     min_eig_val, _, _ = fim.find_min_eig_pair(inf_mats, final_solution, H0, num_poses)
@@ -577,7 +579,7 @@ def frank_wolfe_exp(inf_mats, H0, n_iters, selection_init, k, num_poses, num_run
                 grad[ind] = grad[ind] + min_eig_vec.T @ grad_schur @ min_eig_vec
 
         #round the solution and pick top k
-        rounded_sol = fim.roundsolution(grad, k)
+        rounded_sol = roundsolution(grad, k)
         #rounded_sol = roundsolution_breakties(grad, k,inf_mats, H0)
 
         # Compute dual upper bound from linear approximation
@@ -607,7 +609,7 @@ def frank_wolfe_exp(inf_mats, H0, n_iters, selection_init, k, num_poses, num_run
     print(selection_cur)
 
     #final_solution = roundsolution_breakties(selection_cur, k, inf_mats, H0)
-    final_solution = fim.roundsolution(selection_cur, k)
+    final_solution = roundsolution(selection_cur, k)
     print(final_solution)
     min_eig_val_unrounded = 0.0
     min_eig_val_rounded = 0.0
@@ -1036,4 +1038,93 @@ def getMLE_multicam(poses, points, extrinsics, K, points_mask):
     return graph, gt_vals, pose_mask, points_mask
 
 
+def roundsolution(selection,k):
+    idx = np.argpartition(selection, -k)[-k:]
+    rounded_sol = np.zeros(len(selection))
+    if k > 0:
+        rounded_sol[idx] = 1.0
+    return rounded_sol
+
+def roundsolution_breakties(selection,k, all_mats, H0):
+    s_rnd = np.round(selection, decimals=5)
+    # print(np.argsort(s_rnd))
+    # print(s_rnd[np.argsort(s_rnd)])
+    all_eigs= []
+    for m in all_mats:
+        m_p = H0 + m
+        assert (utilities.check_symmetric(m_p))
+        eigvals, _ = la.eigh(m_p)
+        all_eigs.append(eigvals[0])
+    all_eigs = np.array(all_eigs)
+    # print(all_eigs[np.argsort(s_rnd)])
+    # print("----------------------------")
+
+    zipped_vals = np.array([(s_rnd[i], all_eigs[i]) for i in range(len(s_rnd))], dtype=[('w', 'float'), ('weight', 'float')])
+    idx = np.argpartition(zipped_vals, -k, order=['w', 'weight'])[-k:]
+    rounded_sol = np.zeros(len(s_rnd))
+    if k > 0:
+        rounded_sol[idx] = 1.0
+    return rounded_sol
+
+def find_min_eig_pair(inf_mats,selection, H0, num_poses):
+    inds = np.where(selection > 1e-10)[0]
+    #print(selection[inds])
+    #final_inf_mat = np.sum(inf_mats[inds], axis=0)
+    final_inf_mat = np.zeros(inf_mats[0].shape)
+    for i in range(len(inds)):
+        final_inf_mat = final_inf_mat + selection[inds[i]] * inf_mats[inds[i]]
+    # add prior infomat H0
+    final_inf_mat = final_inf_mat + H0
+    H_schur = fim.compute_schur_fim(final_inf_mat,num_poses )
+    assert(utilities.check_symmetric(H_schur))
+    #s_t = time.time()
+    eigvals, eigvecs = la.eigh(H_schur)
+    # e_t = time.time()
+    # print("time taken to compute eigen vals and vectors dense: {:.6f}".format(e_t - s_t))
+    #print(selection)
+    # print("eigen vals")
+    # print(eigvals[0:8])
+    # print("null space")
+    # print(scipy.linalg.null_space(H_schur).shape)
+    return eigvals[0], eigvecs[:,0], final_inf_mat
+'''
+################################################################
+Scipy optimization methods
+'''
+def min_eig_obj_with_jac(x, inf_mats, H0, num_poses):
+    # compute the minimum eigen value and eigen vector
+    min_eig_val, min_eig_vec, final_inf_mat = find_min_eig_pair(inf_mats, x, H0, num_poses)
+    # Compute gradient
+    grad = np.zeros(x.shape)
+    ''' required for gradient of schur'''
+    Hxx = final_inf_mat[-num_poses * 6:, -num_poses * 6:]
+    Hll = final_inf_mat[0: -num_poses * 6, 0: -num_poses * 6:]
+    Hlx = final_inf_mat[0: -num_poses * 6, -num_poses * 6:]
+    for ind in range(x.shape[0]):
+        # grad[ind] = min_eig_vec.T @ inf_mats[ind] @ min_eig_vec
+        # gradient schur
+        Hc = inf_mats[ind]
+        Hxx_c = Hc[-num_poses * 6:, -num_poses * 6:]
+        Hll_c = Hc[0: -num_poses * 6, 0: -num_poses * 6:]
+        Hlx_c = Hc[0: -num_poses * 6, -num_poses * 6:]
+        t0 = Hlx.T
+        t1 = np.linalg.pinv(Hll)
+        t2 = t0 @ t1
+        grad_schur = Hxx_c - (Hlx_c.T @ t1 @ t0.T - t2 @ Hll_c @ t1 @ t0.T + t2 @ Hlx_c)
+        grad[ind] = min_eig_vec.T @ grad_schur @ min_eig_vec
+    return -1.0*min_eig_val, -1.0*grad
+
+def scipy_minimize(inf_mats,H0, selection_init, k,num_poses):
+    bounds = tuple([(0,1) for i in range(selection_init.shape[0])])
+    cons = (
+        { 'type': 'eq', 'fun': lambda x : np.sum(x) - k}
+    )
+    res = minimize(min_eig_obj_with_jac, selection_init, method='trust-constr', jac=True, args=(inf_mats,H0, num_poses),
+                   constraints= cons, bounds=bounds, options={'disp': True})
+    print(res.x)
+    rounded_sol = roundsolution(res.x, k)
+    print(rounded_sol)
+    min_eig_val_unr, _, _ = find_min_eig_pair(inf_mats, res.x, H0, num_poses)
+    min_eig_val_rounded, _, _ = find_min_eig_pair(inf_mats, rounded_sol, H0, num_poses)
+    return rounded_sol,res.x,  min_eig_val_rounded, min_eig_val_unr
 
