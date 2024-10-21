@@ -9,7 +9,7 @@ import time
 import gtsam
 from scipy.optimize import linprog
 from gtsam.utils import plot
-from ProblemBuilder import FIM as fim
+from ProblemBuilder import FIM as infmat
 from gtsam import (DoglegOptimizer,
                    GenericProjectionFactorCal3_S2,
                    NonlinearFactorGraph, PinholeCameraCal3_S2, PriorFactorPoint3, PriorFactorPose3, Values)
@@ -52,9 +52,9 @@ def run_frank_wolfe_with_setup(points, poses, K, pose_rots, pose_trans, num_cand
             c1 = gtsam.Pose3(gtsam.Rot3(rot), gtsam.Point3(trans[0], trans[1], trans[2]))
             # Construct the factor graph for this candidate pose
             graph, gtvals, poses_mask, points_mask = getMLE_multicam(poses, points, [c1], K, np.ones(len(points)))
-            fim, _ = fim.compute_CRLB(gtvals, graph)
+            fim, _ = infmat.compute_CRLB(gtvals, graph)
             inf_mats.append(fim)
-    
+
     #Construct the prior information matrix H0
     num_poses = len(poses)
     num_points = len(points)
@@ -69,7 +69,7 @@ def run_frank_wolfe_with_setup(points, poses, K, pose_rots, pose_trans, num_cand
     final_solution, selection_cur, min_eig_val, min_eig_val_unrounded, num_iters_completed = gen_frank_wolfe(
         inf_mats, H0, n_iters, selection_init, len(A[0]), num_poses, A, b
     )
-    
+
     print(f"Final minimum eigenvalue after Frank-Wolfe: {min_eig_val:.9f}")
     return final_solution, min_eig_val
 
@@ -115,7 +115,7 @@ def greedy_selection(points, poses, K,pose_rots, pose_trans, Nc, metric= Metric.
                     else:
                         for i1, pose in enumerate(poses):
                             gt_vals.insert(X(i1), pose)
-                    fim, crlb = fim.compute_CRLB(gt_vals, graph)
+                    fim, crlb = infmat.compute_CRLB(gt_vals, graph)
                     #build full info matrix
                     h_full = np.zeros((num_poses*6+num_points*3 , num_poses*6+num_points*3))
                     num_ps = np.count_nonzero(poses_mask)
@@ -158,7 +158,7 @@ def greedy_selection(points, poses, K,pose_rots, pose_trans, Nc, metric= Metric.
                     h_full = h_full + h_prior
                     least_fim_eig = 0.0
                     if not loc:
-                        fim = fim.compute_schur_fim(h_full, len(poses))
+                        fim = infmat.compute_schur_fim(h_full, len(poses))
                         #least_fim_eig = math.log(np.linalg.det(np.eye(fim.shape[0]) + fim))
                         if metric == Metric.logdet:
                             sign, least_fim_eig = np.linalg.slogdet(fim)
@@ -228,7 +228,7 @@ def greedy_selection_new(measurements, intrinsics, all_cands, points, poses, Nc,
     best_selection_indices = []
     best_config = []
     best_score = 0.0
-    
+
     # For each camera
     for i in range(0, Nc):
         max_inf = 0.0
@@ -239,11 +239,11 @@ def greedy_selection_new(measurements, intrinsics, all_cands, points, poses, Nc,
                 cur_cands.append(cand)
                 cur_selection = best_selection_indices.copy()
                 cur_selection.append(j)
-                h_full,  graph, gtvals, poses_mask, points_mask = fim.build_hfull(measurements, points, poses, intrinsics, all_cands, cur_selection)
+                h_full,  graph, gtvals, poses_mask, points_mask = infmat.build_hfull(measurements, points, poses, intrinsics, all_cands, cur_selection)
                 h_full = h_full + h_prior
                 least_fim_eig = 0.0
 
-                fim = fim.compute_schur_fim(h_full, len(poses))
+                fim = infmat.compute_schur_fim(h_full, len(poses))
                 # least_fim_eig = math.log(np.linalg.det(np.eye(fim.shape[0]) + fim))
                 if metric == Metric.logdet:
                     sign, least_fim_eig = np.linalg.slogdet(fim)
@@ -293,9 +293,9 @@ def greedy_selection_exp(measurements, intrinsics, all_cands, points, poses, Nc,
                 least_fim_eig = 0.0
                 # Here we should build H for all trajectories, find schur and eig values for all trahectories and maximize that sum
                 for traj_ind in range(num_runs):
-                    h_full,  graph, gtvals, poses_mask, points_mask = fim.build_hfull(measurements[traj_ind], points[traj_ind], poses[traj_ind], intrinsics[traj_ind], all_cands, cur_selection)
+                    h_full,  graph, gtvals, poses_mask, points_mask = infmat.build_hfull(measurements[traj_ind], points[traj_ind], poses[traj_ind], intrinsics[traj_ind], all_cands, cur_selection)
                     h_full = h_full + h_prior
-                    fim = fim.compute_schur_fim(h_full, len(poses[traj_ind]))
+                    fim = infmat.compute_schur_fim(h_full, len(poses[traj_ind]))
                     # least_fim_eig = math.log(np.linalg.det(np.eye(fim.shape[0]) + fim))
                     if metric == Metric.logdet:
                         sign, least_fim_eig = np.linalg.slogdet(fim)
@@ -331,7 +331,7 @@ def greedy_selection_exp(measurements, intrinsics, all_cands, points, poses, Nc,
 def gen_frank_wolfe(inf_mats, H0, n_iters, selection_init, k, num_poses, A, b):
     """
     Franke-Wolfe optimization method with added constraints.
-    
+
     Arguments:
     inf_mats -- The information matrices.
     H0 -- Prior information matrix.
@@ -341,7 +341,7 @@ def gen_frank_wolfe(inf_mats, H0, n_iters, selection_init, k, num_poses, A, b):
     num_poses -- Number of poses.
     A -- Constraint matrix (for cost, weight, etc.).
     b -- Constraint vector (limits for cost, weight, etc.).
-    
+
     Returns:
     final_solution -- Final sensor selection after optimization.
     selection_cur -- Current selection at the end of optimization.
@@ -356,14 +356,14 @@ def gen_frank_wolfe(inf_mats, H0, n_iters, selection_init, k, num_poses, A, b):
 
     for i in range(n_iters):
         # Compute the minimum eigenvalue and eigenvector
-        min_eig_val, min_eig_vec, final_inf_mat = fim.find_min_eig_pair(inf_mats, selection_cur, H0, num_poses)
-        
+        min_eig_val, min_eig_vec, final_inf_mat = infmat.find_min_eig_pair(inf_mats, selection_cur, H0, num_poses)
+
         # Compute gradient
         grad = np.zeros(selection_cur.shape)
         Hxx = final_inf_mat[-num_poses * 6:, -num_poses * 6:]
         Hll = final_inf_mat[0: -num_poses * 6, 0: -num_poses * 6:]
         Hlx = final_inf_mat[0: -num_poses * 6, -num_poses * 6:]
-        
+
         for ind in range(selection_cur.shape[0]):
             Hc = inf_mats[ind]
             Hxx_c = Hc[-num_poses * 6:, -num_poses * 6:]
@@ -380,17 +380,17 @@ def gen_frank_wolfe(inf_mats, H0, n_iters, selection_init, k, num_poses, A, b):
 
         # The rounded solution from linprog
         rounded_sol = result.x
-        
+
         # Stopping criteria
         if abs(min_eig_val - prev_min_eig) < 1e-7:
             break
-        
+
         # Step size
         alpha = 1.0 / (i + 2.0)
         print(f"step size: {alpha:.9f}, iter : {i:.9f}, gradient norm : {np.linalg.norm(grad):.9f}, min eig : {min_eig_val:.15f}")
-        
+
         prev_min_eig = min_eig_val
-        
+
         # Update the selection
         selection_cur = selection_cur + alpha * (rounded_sol - selection_cur)
 
@@ -401,15 +401,15 @@ def gen_frank_wolfe(inf_mats, H0, n_iters, selection_init, k, num_poses, A, b):
     final_solution = roundsolution(selection_cur, k)
     print(final_solution)
 
-    min_eig_val_unrounded, _, _ = fim.find_min_eig_pair(inf_mats, selection_cur, H0, num_poses)
-    min_eig_val, _, _ = fim.find_min_eig_pair(inf_mats, final_solution, H0, num_poses)
+    min_eig_val_unrounded, _, _ = infmat.find_min_eig_pair(inf_mats, selection_cur, H0, num_poses)
+    min_eig_val, _, _ = infmat.find_min_eig_pair(inf_mats, final_solution, H0, num_poses)
 
     return final_solution, selection_cur, min_eig_val, min_eig_val_unrounded, i
 
 def gen_frank_wolfe_exp(inf_mats, H0, n_iters, selection_init, k, num_poses, num_runs, A, b):
     """
     Franke-Wolfe optimization method for multiple trajectories with added constraints.
-    
+
     Arguments:
     inf_mats -- The information matrices for each trajectory.
     H0 -- Prior information matrix.
@@ -420,7 +420,7 @@ def gen_frank_wolfe_exp(inf_mats, H0, n_iters, selection_init, k, num_poses, num
     num_runs -- Number of runs/trajectories.
     A -- Constraint matrix (for cost, weight, etc.).
     b -- Constraint vector (limits for cost, weight, etc.).
-    
+
     Returns:
     final_solution -- Final sensor selection after optimization.
     selection_cur -- Current selection at the end of optimization.
@@ -438,7 +438,7 @@ def gen_frank_wolfe_exp(inf_mats, H0, n_iters, selection_init, k, num_poses, num
         min_eig_val_score = 0.0
         for traj_ind in range(num_runs):
             # Compute the minimum eigenvalue and eigenvector
-            min_eig_val, min_eig_vec, final_inf_mat = fim.find_min_eig_pair(inf_mats[traj_ind], selection_cur, H0, num_poses)
+            min_eig_val, min_eig_vec, final_inf_mat = infmat.find_min_eig_pair(inf_mats[traj_ind], selection_cur, H0, num_poses)
             min_eig_val_score += min_eig_val
 
             # Compute gradient for each trajectory
@@ -488,11 +488,11 @@ def gen_frank_wolfe_exp(inf_mats, H0, n_iters, selection_init, k, num_poses, num
     min_eig_val_rounded = 0.0
     for traj_ind in range(num_runs):
         # Unrounded solution eigenvalue
-        min_eig_val, _, _ = fim.find_min_eig_pair(inf_mats[traj_ind], selection_cur, H0, num_poses)
+        min_eig_val, _, _ = infmat.find_min_eig_pair(inf_mats[traj_ind], selection_cur, H0, num_poses)
         min_eig_val_unrounded += min_eig_val
-        
+
         # Rounded solution eigenvalue
-        min_eig_val, _, _ = fim.find_min_eig_pair(inf_mats[traj_ind], final_solution, H0, num_poses)
+        min_eig_val, _, _ = infmat.find_min_eig_pair(inf_mats[traj_ind], final_solution, H0, num_poses)
         min_eig_val_rounded += min_eig_val
 
     return final_solution, selection_cur, min_eig_val_rounded, min_eig_val_unrounded, i
@@ -503,7 +503,7 @@ def frank_wolfe(inf_mats, H0, n_iters, selection_init, k, num_poses):
     prev_min_eig = 0
     for i in range(n_iters):
         #compute the minimum eigen value and eigen vector
-        min_eig_val, min_eig_vec, final_inf_mat = fim.find_min_eig_pair(inf_mats, selection_cur, H0, num_poses)
+        min_eig_val, min_eig_vec, final_inf_mat = infmat.find_min_eig_pair(inf_mats, selection_cur, H0, num_poses)
         #Compute gradient
         grad = np.zeros(selection_cur.shape)
         ''' required for gradient of schur'''
@@ -544,8 +544,8 @@ def frank_wolfe(inf_mats, H0, n_iters, selection_init, k, num_poses):
     #final_solution = roundsolution_breakties(selection_cur, k, inf_mats, H0)
     final_solution = roundsolution(selection_cur, k)
     print(final_solution)
-    min_eig_val_unrounded, _, _ = fim.find_min_eig_pair(inf_mats, selection_cur, H0, num_poses)
-    min_eig_val, _, _ = fim.find_min_eig_pair(inf_mats, final_solution, H0, num_poses)
+    min_eig_val_unrounded, _, _ = infmat.find_min_eig_pair(inf_mats, selection_cur, H0, num_poses)
+    min_eig_val, _, _ = infmat.find_min_eig_pair(inf_mats, final_solution, H0, num_poses)
     return final_solution, selection_cur, min_eig_val, min_eig_val_unrounded, i
 
 def frank_wolfe_exp(inf_mats, H0, n_iters, selection_init, k, num_poses, num_runs):
@@ -559,7 +559,7 @@ def frank_wolfe_exp(inf_mats, H0, n_iters, selection_init, k, num_poses, num_run
         min_eig_val_score = 0.0
         for traj_ind in range(num_runs):
             # compute the minimum eigen value and eigen vector
-            min_eig_val, min_eig_vec, final_inf_mat = fim.find_min_eig_pair(inf_mats[traj_ind], selection_cur, H0, num_poses)
+            min_eig_val, min_eig_vec, final_inf_mat = infmat.find_min_eig_pair(inf_mats[traj_ind], selection_cur, H0, num_poses)
             min_eig_val_score = min_eig_val_score + min_eig_val
             ''' required for gradient of schur'''
             Hxx = final_inf_mat[-num_poses * 6:, -num_poses * 6:]
@@ -579,7 +579,8 @@ def frank_wolfe_exp(inf_mats, H0, n_iters, selection_init, k, num_poses, num_run
                 grad[ind] = grad[ind] + min_eig_vec.T @ grad_schur @ min_eig_vec
 
         #round the solution and pick top k
-        rounded_sol = roundsolution(grad, k)
+        #rounded_sol = roundsolution(grad, k)
+        rounded_sol = roundsolution_madow(grad, k)
         #rounded_sol = roundsolution_breakties(grad, k,inf_mats, H0)
 
         # Compute dual upper bound from linear approximation
@@ -615,9 +616,9 @@ def frank_wolfe_exp(inf_mats, H0, n_iters, selection_init, k, num_poses, num_run
     min_eig_val_rounded = 0.0
     for traj_ind in range(num_runs):
         # compute the minimum eigen value and eigen vector
-        min_eig_val, _, _ = fim.find_min_eig_pair(inf_mats[traj_ind], selection_cur, H0, num_poses)
+        min_eig_val, _, _ = infmat.find_min_eig_pair(inf_mats[traj_ind], selection_cur, H0, num_poses)
         min_eig_val_unrounded = min_eig_val_unrounded + min_eig_val
-        min_eig_val, _, _ = fim.find_min_eig_pair(inf_mats[traj_ind], final_solution, H0, num_poses)
+        min_eig_val, _, _ = infmat.find_min_eig_pair(inf_mats[traj_ind], final_solution, H0, num_poses)
         min_eig_val_rounded = min_eig_val_rounded + min_eig_val
 
     return final_solution, selection_cur, min_eig_val_rounded, min_eig_val_unrounded, i
@@ -639,14 +640,14 @@ def run_single_experiment_exp(poses, points, measurements, intrinsics, extr_cand
     all_inf_mats = []
     all_debug_nr_facs = []
     for traj_ind in range(num_runs):
-        inf_mats, debug_nr_facs = fim.construct_candidate_inf_mats(measurements[traj_ind], intrinsics[traj_ind], extr_cand, points[traj_ind], poses[traj_ind])
+        inf_mats, debug_nr_facs = infmat.construct_candidate_inf_mats(measurements[traj_ind], intrinsics[traj_ind], extr_cand, points[traj_ind], poses[traj_ind])
         all_inf_mats.append(inf_mats)
         all_debug_nr_facs.append(debug_nr_facs)
     num_cands = len(extr_cand)
     e_opt_prep = time.time()
 
     ''' Define A matrix and b vector for constraints (e.g., select exactly/at most k candidates) '''
-    A = np.ones((1, num_cands))  
+    A = np.ones((1, num_cands))
     b = np.array([select_k])
 
     ''' Initial selection (equal weights or based on greedy) '''
@@ -657,8 +658,8 @@ def run_single_experiment_exp(poses, points, measurements, intrinsics, extr_cand
     ''' Run Frank-Wolfe with A and b constraints '''
     s_f = time.time()
     print("################# FRANK-WOLFE SELECTION ############################")
-    selection_fw, selection_fw_unr, cost_fw, cost_fw_unrounded, num_iters = gen_frank_wolfe_exp(
-        all_inf_mats, h_prior, 600, selection_init.flatten(), select_k, num_poses, num_runs, A, b)
+    selection_fw, selection_fw_unr, cost_fw, cost_fw_unrounded, num_iters = frank_wolfe_exp(
+        all_inf_mats, h_prior, 600, selection_init.flatten(), select_k, num_poses, num_runs)
 
     e_f = time.time()
     print("The Score for traj franke_wolfe with solution. rounded: {:.9f}, unrounded: {:.9f} ".format(cost_fw, cost_fw_unrounded))
@@ -691,12 +692,12 @@ def run_single_experiment(poses, points, measurements, intrinsics, extr_cand, se
 
     ''' Construct factor graph and infomats '''
     s_opt_prep = time.time()
-    inf_mats, debug_nr_facs = fim.construct_candidate_inf_mats(measurements, intrinsics, extr_cand, points, poses)
+    inf_mats, debug_nr_facs = infmat.construct_candidate_inf_mats(measurements, intrinsics, extr_cand, points, poses)
     num_cands = len(extr_cand)
     e_opt_prep = time.time()
 
     ''' Define A matrix and b vector for constraints (e.g., select exactly/at most k candidates) '''
-    A = np.ones((1, num_cands))  
+    A = np.ones((1, num_cands))
     b = np.array([select_k])
 
     ''' Initial selection (equal weights or based on greedy) '''
@@ -1066,27 +1067,24 @@ def roundsolution_breakties(selection,k, all_mats, H0):
         rounded_sol[idx] = 1.0
     return rounded_sol
 
-def find_min_eig_pair(inf_mats,selection, H0, num_poses):
-    inds = np.where(selection > 1e-10)[0]
-    #print(selection[inds])
-    #final_inf_mat = np.sum(inf_mats[inds], axis=0)
-    final_inf_mat = np.zeros(inf_mats[0].shape)
-    for i in range(len(inds)):
-        final_inf_mat = final_inf_mat + selection[inds[i]] * inf_mats[inds[i]]
-    # add prior infomat H0
-    final_inf_mat = final_inf_mat + H0
-    H_schur = fim.compute_schur_fim(final_inf_mat,num_poses )
-    assert(utilities.check_symmetric(H_schur))
-    #s_t = time.time()
-    eigvals, eigvecs = la.eigh(H_schur)
-    # e_t = time.time()
-    # print("time taken to compute eigen vals and vectors dense: {:.6f}".format(e_t - s_t))
-    #print(selection)
-    # print("eigen vals")
-    # print(eigvals[0:8])
-    # print("null space")
-    # print(scipy.linalg.null_space(H_schur).shape)
-    return eigvals[0], eigvecs[:,0], final_inf_mat
+def roundsolution_madow(selection, k):
+    num = len(selection)
+    phi = np.zeros(num)
+    rounded_sol = np.zeros(num)
+    phi[1:] = np.cumsum(selection[1:])
+    u = np.random.rand()
+
+    for i in range(k):
+        for j in range(num):
+            if (phi[j] <= u+i) and (u+i < phi[j+1]):
+                if rounded_sol[j] == 1:
+                    continue
+                rounded_sol[j] = 1
+                break
+    print("number of candidate selected after rounding" + str(np.sum(rounded_sol)))
+    return rounded_sol
+
+
 '''
 ################################################################
 Scipy optimization methods

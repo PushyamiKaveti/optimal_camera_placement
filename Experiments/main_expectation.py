@@ -5,7 +5,7 @@ from gtsam import Cal3_S2
 import numpy as np
 import os
 import random
-from ProblemBuilder import FIM as core
+from ProblemBuilder import FIM as fim
 from DataGenerator import sim_data_utils as sdu
 import argparse
 from Experiments import exp_utils
@@ -35,9 +35,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    num_points = 10*4
-    num_poses =10
-    max_select_k = 2
+    num_points = 25*4
+    num_poses =50
+    max_select_k = 3
     K = Cal3_S2(100.0, 100.0, 0.0, 50.0, 50.0)
     ''' Number of cameras to be selected'''
     #select_k = args.select_k
@@ -189,9 +189,9 @@ if __name__ == '__main__':
             score_stnd = 0.0
             score_rand = 0.0
             for traj_ind in range(args.num_runs):
-                score_equal = score_equal + exp_utils.compute_info_metric(all_poses[traj_ind], all_points[traj_ind], all_measurements_equal[traj_ind], all_intrinsics_e[traj_ind], all_extr_cand_equal[traj_ind], selection_equal, h_prior)
-                score_stnd = score_stnd + exp_utils.compute_info_metric(all_poses[traj_ind], all_points[traj_ind], all_measurements_stnd[traj_ind],all_intrinsics_s[traj_ind], all_extr_cand_stnd[traj_ind], selection_stnd, h_prior)
-                score_rand = score_rand + exp_utils.compute_info_metric(all_poses[traj_ind], all_points[traj_ind], all_measurements[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selection_rand, h_prior)
+                score_equal = score_equal + fim.compute_info_metric(all_poses[traj_ind], all_points[traj_ind], all_measurements_equal[traj_ind], all_intrinsics_e[traj_ind], all_extr_cand_equal[traj_ind], selection_equal, h_prior)
+                score_stnd = score_stnd + fim.compute_info_metric(all_poses[traj_ind], all_points[traj_ind], all_measurements_stnd[traj_ind],all_intrinsics_s[traj_ind], all_extr_cand_stnd[traj_ind], selection_stnd, h_prior)
+                score_rand = score_rand + fim.compute_info_metric(all_poses[traj_ind], all_points[traj_ind], all_measurements[traj_ind], all_intrinsics[traj_ind], all_extr_cand[traj_ind], selection_rand, h_prior)
             ''' Just duplicate entries for times, scores and candidates for each run. Note that we have only one set of scores, time and selected candidate. but RMSEs exist for each individual trajectrory'''
             for traj_ind in range(args.num_runs):
                 equal_scores[select_k].append(score_equal)
@@ -309,4 +309,4 @@ if __name__ == '__main__':
             np.savetxt(os.path.join(output_file_Path, "results_"+traj+"{}_.txt".format(select_k)), result_log_arr)
 
     ''' visualize the final selection with franke wolfe'''
-   # visualize.show_camconfig_with_world([best_config_g, best_configs_fw], 3,["greedy", "franke_wolfe"],  K, poses, points)
+    #visualize.show_camconfig_with_world([best_config_g, best_configs_fw], 3,["greedy", "franke_wolfe"],  K, poses, points)

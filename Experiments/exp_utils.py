@@ -2,19 +2,14 @@ from ProblemBuilder import FIM as fim
 import numpy as np
 import gtsam
 import math
-
-def compute_info_metric(poses, points, meas, intrinsics, cands, selection, h_prior):
-    num_poses = len(poses)
-    num_points = len(points)
-    h_full, graph, gtvals, poses_mask, points_mask = fim.build_hfull(meas, points, poses, intrinsics, cands, selection)
-    h_full = h_full + h_prior
-    fim = fim.compute_schur_fim(h_full, len(poses))
-    least_fim_eig = np.linalg.eigvalsh(fim)[0]
-    return least_fim_eig
+from gtsam import (DoglegOptimizer, LevenbergMarquardtOptimizer,
+                    PriorFactorPoint3, PriorFactorPose3,  Values)
+L = gtsam.symbol_shorthand.L
+X = gtsam.symbol_shorthand.X
 
 def compute_rmse(measurements, poses, points, intrinsics, extr_cand,selected_inds,poses_with_noise, points_with_noise,h_prior_val, loc= False ):
     '''build the factor graph with the configuration '''
-    graph_g, gtvals_g, poses_mask_g, points_mask_g = build_graph(measurements, poses, points, intrinsics,  extr_cand,
+    graph_g, gtvals_g, poses_mask_g, points_mask_g = fim.build_graph(measurements, poses, points, intrinsics,  extr_cand,
                                                                  selected_inds, rm_ill_posed = not loc)
     # Add a prior on pose x1. This indirectly specifies where the origin is.
     #same as the prior on the first pose given
@@ -79,7 +74,7 @@ def compute_rmse(measurements, poses, points, intrinsics, extr_cand,selected_ind
         result = Values()
         pass
     # result.print('Final results:\n')
-    rmse = utilities.compute_traj_error(result, poses, initial_estimate_g)
+    rmse = compute_traj_error(result, poses, initial_estimate_g)
     print("The RMSE of the estimated trajectory with best camera placement: " + str(rmse))
     return rmse
 

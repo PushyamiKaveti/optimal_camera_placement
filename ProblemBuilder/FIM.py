@@ -1,14 +1,13 @@
 from OASIS import utilities
 from gtsam import Point3, Cal3_S2, PinholeCameraCal3_S2
 import numpy as np
-import time
 import gtsam
 from gtsam import (DoglegOptimizer, LevenbergMarquardtOptimizer,
                     GenericProjectionFactorCal3_S2,
                     NonlinearFactorGraph,
                     PriorFactorPoint3, PriorFactorPose3,  Values)
 
-
+from numpy import linalg as la
 
 
 L = gtsam.symbol_shorthand.L
@@ -212,8 +211,37 @@ def construct_candidate_inf_mats(measurements, intrinsics, extr_cand, points, po
     # print(np.allclose(hfull, h_sum))
     return inf_mats,debug_num_facs
 
+def compute_info_metric(poses, points, meas, intrinsics, cands, selection, h_prior):
+    num_poses = len(poses)
+    num_points = len(points)
+    h_full, graph, gtvals, poses_mask, points_mask = build_hfull(meas, points, poses, intrinsics, cands, selection)
+    h_full = h_full + h_prior
+    fim = compute_schur_fim(h_full, len(poses))
+    least_fim_eig = np.linalg.eigvalsh(fim)[0]
+    return least_fim_eig
 
 
+def find_min_eig_pair(inf_mats,selection, H0, num_poses):
+    inds = np.where(selection > 1e-10)[0]
+    #print(selection[inds])
+    #final_inf_mat = np.sum(inf_mats[inds], axis=0)
+    final_inf_mat = np.zeros(inf_mats[0].shape)
+    for i in range(len(inds)):
+        final_inf_mat = final_inf_mat + selection[inds[i]] * inf_mats[inds[i]]
+    # add prior infomat H0
+    final_inf_mat = final_inf_mat + H0
+    H_schur = compute_schur_fim(final_inf_mat, num_poses)
+    assert(utilities.check_symmetric(H_schur))
+    #s_t = time.time()
+    eigvals, eigvecs = la.eigh(H_schur)
+    # e_t = time.time()
+    # print("time taken to compute eigen vals and vectors dense: {:.6f}".format(e_t - s_t))
+    #print(selection)
+    # print("eigen vals")
+    # print(eigvals[0:8])
+    # print("null space")
+    # print(scipy.linalg.null_space(H_schur).shape)
+    return eigvals[0], eigvecs[:,0], final_inf_mat
 
 ''' #########################################################'''
 
